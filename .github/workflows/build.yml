@@ -103,9 +103,11 @@ jobs:
       - name: Fetch linuxdeploy
         run: |
           base=https://github.com/linuxdeploy
-          wget -q "$base/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
-          wget -q "$base/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
-          chmod +x linuxdeploy-*.AppImage
+          # Kept out of the workspace root so they can't be mistaken for our output.
+          mkdir -p tools
+          wget -q -P tools "$base/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          wget -q -P tools "$base/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+          chmod +x tools/*.AppImage
 
       - name: Bundle AppImage
         env:
@@ -117,14 +119,15 @@ jobs:
           LINUXDEPLOY_OUTPUT_VERSION: ${{ needs.version.outputs.version }}
         run: |
           export QMAKE="$QT_ROOT_DIR/bin/qmake"
-          ./linuxdeploy-x86_64.AppImage \
+          mkdir -p dist
+          export OUTPUT="dist/$APP-$VERSION-x86_64.AppImage"
+          ./tools/linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --desktop-file AppDir/usr/share/applications/$APP.desktop \
             --icon-file AppDir/usr/share/icons/hicolor/scalable/apps/$APP.svg \
             --plugin qt \
             --output appimage
-          mkdir -p dist
-          mv ./*.AppImage "dist/$APP-$VERSION-x86_64.AppImage"
+          ls -l "$OUTPUT"
 
       - name: Package portable tarball
         run: |
