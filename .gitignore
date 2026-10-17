@@ -1,0 +1,24 @@
+# Build output
+build/
+build-*/
+cmake-build-*/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+compile_commands.json
+
+# Qt
+*.qmlc
+*.jsc
+.qmlls.ini
+*.pro.user*
+CMakeLists.txt.user*
+
+# Editors / tools
+.cache/
+.vscode/
+.idea/
+*.swp
+*~

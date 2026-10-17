@@ -1,0 +1,170 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP: claude-usage-monitor
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Determine version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            base=$(sed -n 's/^project([^)]*VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+            version="${base}+git${GITHUB_SHA::7}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
+  # Native package built against the distro's Qt (needs Qt >= 6.5, so Ubuntu 26.04).
+  deb:
+    needs: version
+    runs-on: ubuntu-latest
+    container: ubuntu:26.04
+    steps:
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates build-essential cmake ninja-build dpkg-dev file \
+            qt6-base-dev qt6-declarative-dev libgl-dev
+
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DAPP_VERSION="${{ needs.version.outputs.version }}"
+          cmake --build build
+
+      - name: Package
+        working-directory: build
+        run: |
+          cpack -G DEB
+          dpkg-deb --info ./*.deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: build/*.deb
+          if-no-files-found: error
+
+  # Self-contained builds: Qt is bundled, so build on an older glibc for reach.
+  appimage:
+    needs: version
+    runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libgl1-mesa-dev libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
+            libfontconfig1 libdbus-1-3
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          cache: true
+
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DAPP_VERSION="$VERSION"
+          cmake --build build
+          DESTDIR="$PWD/AppDir" cmake --install build
+
+      - name: Fetch linuxdeploy
+        run: |
+          base=https://github.com/linuxdeploy
+          wget -q "$base/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          wget -q "$base/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+          chmod +x linuxdeploy-*.AppImage
+
+      - name: Bundle AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1  # runners have no FUSE
+          QML_SOURCES_PATHS: ${{ github.workspace }}/qml
+          # The header icon is an SVG loaded at runtime, invisible to ldd.
+          EXTRA_QT_MODULES: svg
+          EXTRA_QT_PLUGINS: svg
+          LINUXDEPLOY_OUTPUT_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          export QMAKE="$QT_ROOT_DIR/bin/qmake"
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --desktop-file AppDir/usr/share/applications/$APP.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/scalable/apps/$APP.svg \
+            --plugin qt \
+            --output appimage
+          mkdir -p dist
+          mv ./*.AppImage "dist/$APP-$VERSION-x86_64.AppImage"
+
+      - name: Package portable tarball
+        run: |
+          # The populated AppDir runs as-is via AppRun, without FUSE.
+          cp -a AppDir "$APP"
+          tar -czf "dist/$APP-$VERSION-linux-x86_64.tar.gz" "$APP"
+
+      - name: Smoke test
+        run: |
+          "./$APP/AppRun" --version
+          "./$APP/AppRun" --help | head -5
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [deb, appimage]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

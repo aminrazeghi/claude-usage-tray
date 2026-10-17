@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Claude Usage
+GenericName=Usage Monitor
+Comment=Tray monitor for Claude usage limits
+Exec=claude-usage-monitor
+Icon=claude-usage-monitor
+Terminal=false
+Categories=Utility;Development;
+Keywords=claude;usage;limits;tray;
+StartupNotify=false
