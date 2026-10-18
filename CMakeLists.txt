@@ -39,14 +39,12 @@ qt_add_qml_module(claude-usage-monitor
         qml/Header.qml
         qml/RefreshButton.qml
         qml/GaugePanel.qml
-        qml/DetailsPanel.qml
         qml/CircularGauge.qml
         qml/UsageRow.qml
     RESOURCES
         resources/claude-icon.svg
         resources/icons/alarm.svg
         resources/icons/calendar.svg
-        resources/icons/today.svg
         resources/statusline.sh
 )
 

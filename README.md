@@ -44,8 +44,7 @@ Pushing a tag like `v1.0.1` attaches all three to a GitHub release.
 
 | Option | Effect |
 | --- | --- |
-| `--show` | open a popup on startup |
-| `--view details\|gauge` | which popup `--show` / `--grab` use (default: details) |
+| `--show` | open the popup on startup |
 | `--no-setup` | don't touch `~/.claude` |
 | `--force-setup` | replace an existing statusLine command (settings are backed up) |
 | `--file <path>` | watch another snapshot (also `CLAUDE_USAGE_FILE`, honoured by the script) |
@@ -55,14 +54,14 @@ Pushing a tag like `v1.0.1` attaches all three to a GitHub release.
 
 | Click | GNOME (AppIndicator extension) | KDE / other SNI hosts |
 | --- | --- | --- |
-| Left | native menu (single) · details panel (double) | details panel |
-| Right | native menu: Show Usage (gauge), Usage Details, Refresh, Quit | same |
+| Left | menu (single) · usage popup (double) | usage popup |
+| Right | menu: Show Usage, Refresh, Quit | same |
 
 GNOME Shell draws the tray menu itself and only forwards double clicks to the
-app, so a custom panel can't open on a single left click there.
+app, so the popup can't open on a single left click there.
 
-In the details panel, click a "Resets …" line to switch between the countdown
-and the reset time.
+In the popup, click the gauge to switch between used and available, and click
+a limit's reset time to see the time left instead.
 
 ## Notes
 

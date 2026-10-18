@@ -9,35 +9,25 @@
 class QQuickWindow;
 class UsageWatcher;
 
-// Owns the tray icon (a live 5-hour usage ring) and the QML popups: the
-// details panel opens on primary activation, the gauge from the context menu.
+// Owns the tray icon (a live 5-hour usage ring) and toggles the QML popup.
 class TrayController : public QObject
 {
     Q_OBJECT
 
 public:
-    enum class View { Details, Gauge };
+    TrayController(UsageWatcher *usage, QQuickWindow *popup, QObject *parent = nullptr);
 
-    TrayController(UsageWatcher *usage, QQuickWindow *details, QQuickWindow *gauge, QObject *parent = nullptr);
-
-    void toggle(View view);
-    void show(View view);
+    void togglePopup();
+    void showPopup();
 
 private:
-    struct Popup
-    {
-        QPointer<QQuickWindow> window;
-        QElapsedTimer sinceHidden;
-    };
-
-    Popup &popup(View view) { return view == View::Details ? m_details : m_gauge; }
     void updateIcon();
-    void position(QQuickWindow *window);
+    void positionPopup();
 
     UsageWatcher *m_usage;
-    Popup m_details;
-    Popup m_gauge;
+    QPointer<QQuickWindow> m_popup;
     QSystemTrayIcon m_tray;
     QMenu m_menu;
+    QElapsedTimer m_sinceHidden;
     int m_lastShownPercent = -2;
 };

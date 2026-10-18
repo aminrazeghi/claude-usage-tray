@@ -22,13 +22,11 @@ class UsageWatcher : public QObject
     Q_PROPERTY(double fiveHourUsed READ fiveHourUsed NOTIFY clockChanged)
     Q_PROPERTY(QString fiveHourResetText READ fiveHourResetText NOTIFY clockChanged)
     Q_PROPERTY(QString fiveHourLeftText READ fiveHourLeftText NOTIFY clockChanged)
-    Q_PROPERTY(QString fiveHourRemainingText READ fiveHourRemainingText NOTIFY clockChanged)
 
     Q_PROPERTY(bool sevenDayKnown READ sevenDayKnown NOTIFY dataChanged)
     Q_PROPERTY(double sevenDayUsed READ sevenDayUsed NOTIFY clockChanged)
     Q_PROPERTY(QString sevenDayResetText READ sevenDayResetText NOTIFY clockChanged)
     Q_PROPERTY(QString sevenDayLeftText READ sevenDayLeftText NOTIFY clockChanged)
-    Q_PROPERTY(QString sevenDayRemainingText READ sevenDayRemainingText NOTIFY clockChanged)
 
     Q_PROPERTY(int todayMessages READ todayMessages NOTIFY todayChanged)
     Q_PROPERTY(QString todayTokensText READ todayTokensText NOTIFY todayChanged)
@@ -48,13 +46,11 @@ public:
     double fiveHourUsed() const { return effectiveUsed(m_fiveHour); }
     QString fiveHourResetText() const { return resetText(m_fiveHour); }
     QString fiveHourLeftText() const { return leftText(m_fiveHour); }
-    QString fiveHourRemainingText() const { return remainingText(m_fiveHour); }
 
     bool sevenDayKnown() const { return m_sevenDay.present; }
     double sevenDayUsed() const { return effectiveUsed(m_sevenDay); }
     QString sevenDayResetText() const { return resetText(m_sevenDay); }
     QString sevenDayLeftText() const { return leftText(m_sevenDay); }
-    QString sevenDayRemainingText() const { return remainingText(m_sevenDay); }
 
     int todayMessages() const { return m_today.messages(); }
     QString todayTokensText() const;

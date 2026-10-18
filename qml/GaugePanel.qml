@@ -2,7 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import ClaudeUsage
 
-// Ring gauge view: click the gauge to switch between used and available.
+// Usage popup content: click the gauge to switch between used and available,
+// click a row's reset time to see the time left instead.
 ColumnLayout {
     id: root
 
@@ -36,25 +37,23 @@ ColumnLayout {
 
         UsageRow {
             Layout.fillWidth: true
-            color: Theme.card
             accent: Theme.green
+            icon: "../resources/icons/alarm.svg"
+            title: "5-Hour"
             known: usage.fiveHourKnown
-            badgeValue: Math.round(usage.fiveHourUsed)
-            title: "5-Hour Limit"
-            value: root.showAvailable ? usage.fiveHourLeftText : usage.fiveHourResetText
-            textColor: Theme.textPrimary
-            subTextColor: Theme.textSecondary
+            percent: usage.fiveHourUsed
+            resetText: usage.fiveHourResetText
+            leftText: usage.fiveHourLeftText
         }
         UsageRow {
             Layout.fillWidth: true
-            color: Theme.card
             accent: Theme.purple
+            icon: "../resources/icons/calendar.svg"
+            title: "Weekly"
             known: usage.sevenDayKnown
-            badgeValue: Math.round(usage.sevenDayUsed)
-            title: "7-Day Limit"
-            value: root.showAvailable ? usage.sevenDayLeftText : usage.sevenDayResetText
-            textColor: Theme.textPrimary
-            subTextColor: Theme.textSecondary
+            percent: usage.sevenDayUsed
+            resetText: usage.sevenDayResetText
+            leftText: usage.sevenDayLeftText
         }
     }
 

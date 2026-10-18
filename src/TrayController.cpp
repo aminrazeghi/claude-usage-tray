@@ -57,15 +57,12 @@ QIcon renderTrayIcon(int percent)
 
 } // namespace
 
-TrayController::TrayController(UsageWatcher *usage, QQuickWindow *details, QQuickWindow *gauge, QObject *parent)
+TrayController::TrayController(UsageWatcher *usage, QQuickWindow *popup, QObject *parent)
     : QObject(parent)
     , m_usage(usage)
+    , m_popup(popup)
 {
-    m_details.window = details;
-    m_gauge.window = gauge;
-
-    m_menu.addAction(QStringLiteral("Show Usage"), this, [this] { show(View::Gauge); });
-    m_menu.addAction(QStringLiteral("Usage Details"), this, [this] { show(View::Details); });
+    m_menu.addAction(QStringLiteral("Show Usage"), this, &TrayController::showPopup);
     m_menu.addAction(QStringLiteral("Refresh"), m_usage, &UsageWatcher::refresh);
     m_menu.addSeparator();
     m_menu.addAction(QStringLiteral("Quit"), qApp, &QCoreApplication::quit);
@@ -76,18 +73,16 @@ TrayController::TrayController(UsageWatcher *usage, QQuickWindow *details, QQuic
     // send Trigger on a single click.
     connect(&m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick)
-            toggle(View::Details);
+            togglePopup();
     });
 
-    // A popup hides itself when it loses focus. Clicking the tray icon causes
+    // The popup hides itself when it loses focus. Clicking the tray icon causes
     // exactly that just before `activated` fires, so remember when it happened
     // to keep the click from immediately reopening it.
-    for (Popup *p : {&m_details, &m_gauge}) {
-        connect(p->window, &QWindow::visibleChanged, this, [p](bool visible) {
-            if (!visible)
-                p->sinceHidden.start();
-        });
-    }
+    connect(m_popup, &QWindow::visibleChanged, this, [this](bool visible) {
+        if (!visible)
+            m_sinceHidden.start();
+    });
 
     connect(m_usage, &UsageWatcher::clockChanged, this, &TrayController::updateIcon);
     connect(m_usage, &UsageWatcher::dataChanged, this, &TrayController::updateIcon);
@@ -111,37 +106,31 @@ void TrayController::updateIcon()
     m_tray.setToolTip(tip);
 }
 
-void TrayController::toggle(View view)
+void TrayController::togglePopup()
 {
-    Popup &p = popup(view);
-    if (!p.window)
+    if (!m_popup)
         return;
-    if (p.window->isVisible()) {
-        p.window->hide();
+    if (m_popup->isVisible()) {
+        m_popup->hide();
         return;
     }
     // Long enough to cover GNOME's double-click wait between the two presses.
-    if (p.sinceHidden.isValid() && p.sinceHidden.elapsed() < 500)
+    if (m_sinceHidden.isValid() && m_sinceHidden.elapsed() < 500)
         return;
-    show(view);
+    showPopup();
 }
 
-void TrayController::show(View view)
+void TrayController::showPopup()
 {
-    QQuickWindow *window = popup(view).window;
-    if (!window)
+    if (!m_popup)
         return;
-    QQuickWindow *other = popup(view == View::Details ? View::Gauge : View::Details).window;
-    if (other)
-        other->hide();
-
-    position(window);
-    window->show();
-    window->raise();
-    window->requestActivate();
+    positionPopup();
+    m_popup->show();
+    m_popup->raise();
+    m_popup->requestActivate();
 }
 
-void TrayController::position(QQuickWindow *window)
+void TrayController::positionPopup()
 {
     const QRect trayRect = m_tray.geometry();
     QScreen *screen = nullptr;
@@ -151,7 +140,7 @@ void TrayController::position(QQuickWindow *window)
         screen = QGuiApplication::primaryScreen();  // GNOME and KDE put the panel on the primary monitor
 
     const QRect avail = screen->availableGeometry();
-    const QSize size = window->size();
+    const QSize size = m_popup->size();
     const int margin = 6;
     QPoint pos;
 
@@ -168,5 +157,5 @@ void TrayController::position(QQuickWindow *window)
 
     pos.setX(std::clamp(pos.x(), avail.left() + margin, avail.right() - size.width() - margin));
     pos.setY(std::clamp(pos.y(), avail.top() + margin, avail.bottom() - size.height() - margin));
-    window->setPosition(pos);
+    m_popup->setPosition(pos);
 }
