@@ -3,6 +3,19 @@
 A Qt 6 / QML system tray app for Linux showing Claude subscription usage: the
 5-hour and 7-day rate-limit windows, plus today's message and token counts.
 
+## Screenshots
+
+| Full popup | Used ↔ available |
+| :---: | :---: |
+| <img src="assets/popup-full.png" alt="Full popup: usage gauge, 5-hour and weekly limits, today's activity" width="318"> | <img src="assets/gauge-toggle.gif" alt="Clicking the gauge animates between 7% used and 93% available" width="291"> |
+
+Collapsed popup, showing just the 5-hour and weekly percentages:
+
+<img src="assets/popup-compact.png" alt="Collapsed popup with 5-hour and weekly percentages" width="246">
+
+Clicking the gauge sweeps both rings over to the unused part of each window
+([MP4 version](assets/gauge-toggle.mp4)).
+
 ## How it works
 
 1. On launch the app installs `~/.claude/statusline.sh` and sets
