@@ -51,7 +51,14 @@ ColumnLayout {
         property alias title: title.title
         property bool known: false
         property real percent: 0
-        property string caption
+        property string remainingText  // "4h 39m"; empty once the window has passed
+        property string resetText      // "Today 8:40 PM", "Thu 10 PM"
+        // Click the caption to switch between countdown and reset time.
+        property bool showCountdown: true
+        readonly property string caption: !known ? "No data yet"
+                                        : !remainingText ? "Window has reset"
+                                        : showCountdown ? "Resets in " + remainingText
+                                        : "Resets " + resetText
 
         Layout.fillWidth: true
         spacing: 8
@@ -82,8 +89,17 @@ ColumnLayout {
 
         Text {
             text: section.caption
-            color: Theme.textSecondary
+            color: captionArea.containsMouse && section.remainingText ? Theme.textPrimary : Theme.textSecondary
             font.pixelSize: 12
+
+            MouseArea {
+                id: captionArea
+                anchors.fill: parent
+                enabled: section.remainingText !== ""
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: section.showCountdown = !section.showCountdown
+            }
         }
     }
 
@@ -130,9 +146,8 @@ ColumnLayout {
         title: "5-Hour Window"
         known: usage.fiveHourKnown
         percent: usage.fiveHourUsed
-        caption: !usage.fiveHourKnown ? "No data yet"
-               : usage.fiveHourRemainingText ? "Resets in " + usage.fiveHourRemainingText
-               : "Window has reset"
+        remainingText: usage.fiveHourRemainingText
+        resetText: usage.fiveHourResetText
     }
 
     LimitSection {
@@ -141,9 +156,9 @@ ColumnLayout {
         title: "Weekly"
         known: usage.sevenDayKnown
         percent: usage.sevenDayUsed
-        caption: !usage.sevenDayKnown ? "No data yet"
-               : usage.sevenDayRemainingText ? "Resets " + usage.sevenDayResetText
-               : "Window has reset"
+        remainingText: usage.sevenDayRemainingText
+        resetText: usage.sevenDayResetText
+        showCountdown: false
     }
 
     Divider { Layout.topMargin: 4 }

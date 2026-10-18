@@ -64,8 +64,8 @@ TrayController::TrayController(UsageWatcher *usage, QQuickWindow *details, QQuic
     m_details.window = details;
     m_gauge.window = gauge;
 
+    m_menu.addAction(QStringLiteral("Show Usage"), this, [this] { show(View::Gauge); });
     m_menu.addAction(QStringLiteral("Usage Details"), this, [this] { show(View::Details); });
-    m_menu.addAction(QStringLiteral("Usage Gauge"), this, [this] { show(View::Gauge); });
     m_menu.addAction(QStringLiteral("Refresh"), m_usage, &UsageWatcher::refresh);
     m_menu.addSeparator();
     m_menu.addAction(QStringLiteral("Quit"), qApp, &QCoreApplication::quit);
@@ -73,12 +73,10 @@ TrayController::TrayController(UsageWatcher *usage, QQuickWindow *details, QQuic
 
     // GNOME's AppIndicator extension opens the context menu on a single left
     // click and only sends Activate (Trigger) on a double click; other hosts
-    // send Trigger on a single click. Middle click is SecondaryActivate.
+    // send Trigger on a single click.
     connect(&m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick)
             toggle(View::Details);
-        else if (reason == QSystemTrayIcon::MiddleClick)
-            toggle(View::Gauge);
     });
 
     // A popup hides itself when it loses focus. Clicking the tray icon causes

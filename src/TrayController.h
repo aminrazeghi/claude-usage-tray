@@ -9,8 +9,8 @@
 class QQuickWindow;
 class UsageWatcher;
 
-// Owns the tray icon (a live 5-hour usage ring) and toggles the QML popups:
-// the details panel on primary activation, the gauge on middle click.
+// Owns the tray icon (a live 5-hour usage ring) and the QML popups: the
+// details panel opens on primary activation, the gauge from the context menu.
 class TrayController : public QObject
 {
     Q_OBJECT

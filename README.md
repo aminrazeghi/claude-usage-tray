@@ -56,12 +56,13 @@ Pushing a tag like `v1.0.1` attaches all three to a GitHub release.
 | Click | GNOME (AppIndicator extension) | KDE / other SNI hosts |
 | --- | --- | --- |
 | Left | native menu (single) · details panel (double) | details panel |
-| Middle | gauge popup | gauge popup |
-| Right | native menu | native menu |
+| Right | native menu: Show Usage (gauge), Usage Details, Refresh, Quit | same |
 
-GNOME Shell draws the tray menu itself and only forwards double and middle
-clicks to the app, so a custom panel can't open on a single left click there.
-The menu has "Usage Details" and "Usage Gauge" entries for that reason.
+GNOME Shell draws the tray menu itself and only forwards double clicks to the
+app, so a custom panel can't open on a single left click there.
+
+In the details panel, click a "Resets …" line to switch between the countdown
+and the reset time.
 
 ## Notes
 
