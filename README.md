@@ -16,6 +16,36 @@ Collapsed popup, showing just the 5-hour and weekly percentages:
 Clicking the gauge sweeps both rings over to the unused part of each window
 ([MP4 version](assets/gauge-toggle.mp4)).
 
+## Install
+
+On Linux x86_64:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/aminrazeghi/claude-usage-tray/main/install.sh | bash
+```
+
+This installs the portable build from the latest release for your user only (no root):
+
+| What | Where |
+| --- | --- |
+| App (bundled Qt) | `~/.local/share/claude-usage-monitor/` |
+| Command | `~/.local/bin/claude-usage-monitor` |
+| Icon & menu entry | `~/.local/share/icons/…`, `~/.local/share/applications/` |
+| Start on login | `~/.config/autostart/claude-usage-monitor.desktop` |
+
+Run the same command again to update. Options go after `bash -s --`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/aminrazeghi/claude-usage-tray/main/install.sh | bash -s -- --no-autostart
+curl -fsSL https://raw.githubusercontent.com/aminrazeghi/claude-usage-tray/main/install.sh | bash -s -- --version v0.1.2
+curl -fsSL https://raw.githubusercontent.com/aminrazeghi/claude-usage-tray/main/install.sh | bash -s -- --uninstall
+```
+
+`--no-start` skips launching it after install. The status line needs `jq`, and
+on GNOME the tray needs the AppIndicator extension. The installer warns if
+either is missing. You can also grab the `.deb`, AppImage or tarball from
+[Releases](https://github.com/aminrazeghi/claude-usage-tray/releases).
+
 ## How it works
 
 1. On launch the app installs `~/.claude/statusline.sh` and sets
