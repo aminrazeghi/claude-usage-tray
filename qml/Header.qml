@@ -2,8 +2,14 @@ import QtQuick
 import QtQuick.Layouts
 import ClaudeUsage
 
-// App icon, title and plan badge, shared by both popups.
+// App icon, title, plan badge and the pin / collapse buttons.
 RowLayout {
+    id: header
+
+    property alias pinned: controls.pinned
+    signal pinClicked()
+    signal collapseClicked()
+
     spacing: 8
 
     Image {
@@ -34,5 +40,12 @@ RowLayout {
             font.pixelSize: 12
             font.weight: Font.DemiBold
         }
+    }
+
+    WindowControls {
+        id: controls
+        compact: false
+        onPinClicked: header.pinClicked()
+        onCompactClicked: header.collapseClicked()
     }
 }

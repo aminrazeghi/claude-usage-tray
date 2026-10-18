@@ -41,6 +41,10 @@ qt_add_qml_module(claude-usage-monitor
         qml/GaugePanel.qml
         qml/CircularGauge.qml
         qml/UsageRow.qml
+        qml/IconBadge.qml
+        qml/IconButton.qml
+        qml/WindowControls.qml
+        qml/CompactPanel.qml
     RESOURCES
         resources/claude-icon.svg
         resources/icons/alarm.svg
@@ -78,6 +82,6 @@ set(CPACK_DEBIAN_PACKAGE_SECTION utils)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 # QML modules and plugins are loaded at runtime, so shlibdeps can't see them.
 set(CPACK_DEBIAN_PACKAGE_DEPENDS
-    "jq, qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtquick-layouts, qml6-module-qtquick-shapes, qml6-module-qtquick-effects, qt6-svg-plugins")
+    "jq, qml6-module-qtcore, qml6-module-qtquick, qml6-module-qtquick-window, qml6-module-qtquick-layouts, qml6-module-qtquick-shapes, qml6-module-qtquick-effects, qt6-svg-plugins")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "gnome-shell-extension-appindicator")
 include(CPack)

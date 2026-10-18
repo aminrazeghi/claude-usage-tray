@@ -26,21 +26,9 @@ Rectangle {
         anchors.rightMargin: 12
         spacing: 8
 
-        Rectangle {
-            Layout.preferredWidth: 24
-            Layout.preferredHeight: 24
-            radius: 12
-            color: "transparent"
-            border.color: row.accent
-            border.width: 2
-
-            Image {
-                anchors.centerIn: parent
-                source: row.icon
-                sourceSize: Qt.size(28, 28)
-                width: 14
-                height: 14
-            }
+        IconBadge {
+            accent: row.accent
+            icon: row.icon
         }
 
         Text {

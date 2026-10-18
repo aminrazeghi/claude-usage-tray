@@ -11,8 +11,6 @@ ColumnLayout {
 
     spacing: 12
 
-    Header { Layout.fillWidth: true }
-
     CircularGauge {
         Layout.alignment: Qt.AlignHCenter
         Layout.topMargin: 4

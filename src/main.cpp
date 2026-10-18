@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
         qputenv("QT_QPA_PLATFORM", "xcb");
 
     QApplication app(argc, argv);
+    QApplication::setOrganizationName(QStringLiteral("claude-usage-monitor"));  // QML Settings -> ~/.config/claude-usage-monitor/
     QApplication::setApplicationName(QStringLiteral("claude-usage-monitor"));
     QApplication::setApplicationDisplayName(QStringLiteral("Claude Usage"));
     QApplication::setApplicationVersion(QStringLiteral(PROJECT_VERSION_STRING));

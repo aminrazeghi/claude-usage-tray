@@ -61,7 +61,12 @@ GNOME Shell draws the tray menu itself and only forwards double clicks to the
 app, so the popup can't open on a single left click there.
 
 In the popup, click the gauge to switch between used and available, and click
-a limit's reset time to see the time left instead.
+a limit's reset time to see the time left instead. The header buttons:
+
+- **Pin** keeps the popup open when you click elsewhere; drag it by any empty
+  area to move it. Escape closes it.
+- **Collapse / expand** switches to a compact pill showing just the two
+  percentages. The choice is remembered in `~/.config/claude-usage-monitor/`.
 
 ## Notes
 
