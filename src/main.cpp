@@ -33,11 +33,13 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
     const QCommandLineOption noSetup(QStringLiteral("no-setup"), QStringLiteral("Do not touch ~/.claude/settings.json or statusline.sh."));
     const QCommandLineOption forceSetup(QStringLiteral("force-setup"), QStringLiteral("Replace an existing statusLine command (settings are backed up first)."));
-    const QCommandLineOption showOption(QStringLiteral("show"), QStringLiteral("Open the popup on startup."));
+    const QCommandLineOption showOption(QStringLiteral("show"), QStringLiteral("Open a popup on startup."));
+    const QCommandLineOption viewOption(QStringLiteral("view"), QStringLiteral("Popup for --show/--grab: details or gauge."), QStringLiteral("view"),
+                                        QStringLiteral("details"));
     const QCommandLineOption fileOption(QStringLiteral("file"), QStringLiteral("Usage snapshot to watch."), QStringLiteral("path"),
                                         qEnvironmentVariable("CLAUDE_USAGE_FILE", QStringLiteral("/tmp/claude-usage.json")));
     const QCommandLineOption grabOption(QStringLiteral("grab"), QStringLiteral("Render the popup to an image file and exit."), QStringLiteral("png"));
-    parser.addOptions({noSetup, forceSetup, showOption, fileOption, grabOption});
+    parser.addOptions({noSetup, forceSetup, showOption, viewOption, fileOption, grabOption});
     parser.process(app);
 
     QLockFile lock(QDir::tempPath() + QStringLiteral("/claude-usage-monitor-%1.lock").arg(qEnvironmentVariable("USER")));
@@ -59,11 +61,17 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("usage"), &usage);
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/ClaudeUsage/qml/main.qml")));
-    auto *popup = engine.rootObjects().isEmpty() ? nullptr : qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst());
-    if (!popup)
+    QObject *root = engine.rootObjects().isEmpty() ? nullptr : engine.rootObjects().constFirst();
+    auto *details = root ? root->property("detailsWindow").value<QQuickWindow *>() : nullptr;
+    auto *gauge = root ? root->property("gaugeWindow").value<QQuickWindow *>() : nullptr;
+    if (!details || !gauge)
         return 1;
 
+    const auto view = parser.value(viewOption) == QLatin1String("gauge") ? TrayController::View::Gauge
+                                                                         : TrayController::View::Details;
+
     if (parser.isSet(grabOption)) {
+        QQuickWindow *popup = view == TrayController::View::Gauge ? gauge : details;
         const QString target = parser.value(grabOption);
         popup->show();
         QTimer::singleShot(1500, popup, [popup, target] {
@@ -72,9 +80,9 @@ int main(int argc, char *argv[])
         return app.exec();
     }
 
-    TrayController tray(&usage, popup);
+    TrayController tray(&usage, details, gauge);
     if (parser.isSet(showOption))
-        tray.showPopup();
+        tray.show(view);
 
     return app.exec();
 }

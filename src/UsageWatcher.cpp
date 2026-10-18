@@ -179,18 +179,26 @@ QString UsageWatcher::leftText(const LimitWindow &w)
 {
     if (!w.present || !w.resetsAt.isValid())
         return QStringLiteral("—");
+    const QString remaining = remainingText(w);
+    return remaining.isEmpty() ? QStringLiteral("Reset") : remaining + QStringLiteral(" left");
+}
+
+QString UsageWatcher::remainingText(const LimitWindow &w)
+{
+    if (!w.present || !w.resetsAt.isValid())
+        return QString();
     const qint64 secs = QDateTime::currentDateTime().secsTo(w.resetsAt);
     if (secs <= 0)
-        return QStringLiteral("Reset");
+        return QString();
 
     const qint64 d = secs / 86400, h = (secs % 86400) / 3600, m = (secs % 3600) / 60;
     if (d > 0)
-        return QStringLiteral("%1d %2h left").arg(d).arg(h);
+        return QStringLiteral("%1d %2h").arg(d).arg(h);
     if (h > 0)
-        return QStringLiteral("%1h %2m left").arg(h).arg(m);
+        return QStringLiteral("%1h %2m").arg(h).arg(m);
     if (m > 0)
-        return QStringLiteral("%1m left").arg(m);
-    return QStringLiteral("<1m left");
+        return QStringLiteral("%1m").arg(m);
+    return QStringLiteral("<1m");
 }
 
 QString UsageWatcher::todayTokensText() const

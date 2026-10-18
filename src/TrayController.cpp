@@ -57,29 +57,39 @@ QIcon renderTrayIcon(int percent)
 
 } // namespace
 
-TrayController::TrayController(UsageWatcher *usage, QQuickWindow *popup, QObject *parent)
+TrayController::TrayController(UsageWatcher *usage, QQuickWindow *details, QQuickWindow *gauge, QObject *parent)
     : QObject(parent)
     , m_usage(usage)
-    , m_popup(popup)
 {
-    m_menu.addAction(QStringLiteral("Show Usage"), this, &TrayController::showPopup);
+    m_details.window = details;
+    m_gauge.window = gauge;
+
+    m_menu.addAction(QStringLiteral("Usage Details"), this, [this] { show(View::Details); });
+    m_menu.addAction(QStringLiteral("Usage Gauge"), this, [this] { show(View::Gauge); });
     m_menu.addAction(QStringLiteral("Refresh"), m_usage, &UsageWatcher::refresh);
     m_menu.addSeparator();
     m_menu.addAction(QStringLiteral("Quit"), qApp, &QCoreApplication::quit);
     m_tray.setContextMenu(&m_menu);
 
+    // GNOME's AppIndicator extension opens the context menu on a single left
+    // click and only sends Activate (Trigger) on a double click; other hosts
+    // send Trigger on a single click. Middle click is SecondaryActivate.
     connect(&m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick)
-            togglePopup();
+            toggle(View::Details);
+        else if (reason == QSystemTrayIcon::MiddleClick)
+            toggle(View::Gauge);
     });
 
-    // The popup hides itself when it loses focus. Clicking the tray icon causes
+    // A popup hides itself when it loses focus. Clicking the tray icon causes
     // exactly that just before `activated` fires, so remember when it happened
     // to keep the click from immediately reopening it.
-    connect(m_popup, &QWindow::visibleChanged, this, [this](bool visible) {
-        if (!visible)
-            m_sinceHidden.start();
-    });
+    for (Popup *p : {&m_details, &m_gauge}) {
+        connect(p->window, &QWindow::visibleChanged, this, [p](bool visible) {
+            if (!visible)
+                p->sinceHidden.start();
+        });
+    }
 
     connect(m_usage, &UsageWatcher::clockChanged, this, &TrayController::updateIcon);
     connect(m_usage, &UsageWatcher::dataChanged, this, &TrayController::updateIcon);
@@ -103,30 +113,37 @@ void TrayController::updateIcon()
     m_tray.setToolTip(tip);
 }
 
-void TrayController::togglePopup()
+void TrayController::toggle(View view)
 {
-    if (!m_popup)
+    Popup &p = popup(view);
+    if (!p.window)
         return;
-    if (m_popup->isVisible()) {
-        m_popup->hide();
+    if (p.window->isVisible()) {
+        p.window->hide();
         return;
     }
-    if (m_sinceHidden.isValid() && m_sinceHidden.elapsed() < 300)
+    // Long enough to cover GNOME's double-click wait between the two presses.
+    if (p.sinceHidden.isValid() && p.sinceHidden.elapsed() < 500)
         return;
-    showPopup();
+    show(view);
 }
 
-void TrayController::showPopup()
+void TrayController::show(View view)
 {
-    if (!m_popup)
+    QQuickWindow *window = popup(view).window;
+    if (!window)
         return;
-    positionPopup();
-    m_popup->show();
-    m_popup->raise();
-    m_popup->requestActivate();
+    QQuickWindow *other = popup(view == View::Details ? View::Gauge : View::Details).window;
+    if (other)
+        other->hide();
+
+    position(window);
+    window->show();
+    window->raise();
+    window->requestActivate();
 }
 
-void TrayController::positionPopup()
+void TrayController::position(QQuickWindow *window)
 {
     const QRect trayRect = m_tray.geometry();
     QScreen *screen = nullptr;
@@ -136,7 +153,7 @@ void TrayController::positionPopup()
         screen = QGuiApplication::primaryScreen();  // GNOME and KDE put the panel on the primary monitor
 
     const QRect avail = screen->availableGeometry();
-    const QSize size = m_popup->size();
+    const QSize size = window->size();
     const int margin = 6;
     QPoint pos;
 
@@ -153,5 +170,5 @@ void TrayController::positionPopup()
 
     pos.setX(std::clamp(pos.x(), avail.left() + margin, avail.right() - size.width() - margin));
     pos.setY(std::clamp(pos.y(), avail.top() + margin, avail.bottom() - size.height() - margin));
-    m_popup->setPosition(pos);
+    window->setPosition(pos);
 }

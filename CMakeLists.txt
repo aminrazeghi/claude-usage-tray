@@ -27,15 +27,26 @@ qt_add_executable(claude-usage-monitor
     src/TrayController.cpp
 )
 
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(claude-usage-monitor
     URI ClaudeUsage
     VERSION 1.0
     QML_FILES
         qml/main.qml
+        qml/Theme.qml
+        qml/PopupWindow.qml
+        qml/Header.qml
+        qml/RefreshButton.qml
+        qml/GaugePanel.qml
+        qml/DetailsPanel.qml
         qml/CircularGauge.qml
         qml/UsageRow.qml
     RESOURCES
         resources/claude-icon.svg
+        resources/icons/alarm.svg
+        resources/icons/calendar.svg
+        resources/icons/today.svg
         resources/statusline.sh
 )
 

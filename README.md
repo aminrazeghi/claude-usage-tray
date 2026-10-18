@@ -44,11 +44,24 @@ Pushing a tag like `v1.0.1` attaches all three to a GitHub release.
 
 | Option | Effect |
 | --- | --- |
-| `--show` | open the popup on startup |
+| `--show` | open a popup on startup |
+| `--view details\|gauge` | which popup `--show` / `--grab` use (default: details) |
 | `--no-setup` | don't touch `~/.claude` |
 | `--force-setup` | replace an existing statusLine command (settings are backed up) |
 | `--file <path>` | watch another snapshot (also `CLAUDE_USAGE_FILE`, honoured by the script) |
 | `--grab <png>` | render the popup to an image and exit |
+
+## Tray clicks
+
+| Click | GNOME (AppIndicator extension) | KDE / other SNI hosts |
+| --- | --- | --- |
+| Left | native menu (single) · details panel (double) | details panel |
+| Middle | gauge popup | gauge popup |
+| Right | native menu | native menu |
+
+GNOME Shell draws the tray menu itself and only forwards double and middle
+clicks to the app, so a custom panel can't open on a single left click there.
+The menu has "Usage Details" and "Usage Gauge" entries for that reason.
 
 ## Notes
 
