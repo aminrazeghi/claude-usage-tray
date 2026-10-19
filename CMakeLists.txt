@@ -9,6 +9,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(APP_VERSION "${PROJECT_VERSION}" CACHE STRING "Version reported by the app and used for packages")
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick Widgets Concurrent)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
 
 qt_standard_project_setup(REQUIRES 6.5)
 if(QT_KNOWN_POLICY_QTP0004)
@@ -62,6 +64,7 @@ target_link_libraries(claude-usage-monitor PRIVATE
     Qt6::Quick
     Qt6::Widgets
     Qt6::Concurrent
+    PkgConfig::XCB
 )
 
 include(GNUInstallDirs)

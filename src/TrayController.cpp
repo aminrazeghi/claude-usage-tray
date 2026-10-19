@@ -7,6 +7,8 @@
 #include <QQuickWindow>
 #include <QScreen>
 
+#include <xcb/xcb.h>
+
 namespace {
 
 QColor usageColor(double percent)
@@ -53,6 +55,26 @@ QIcon renderTrayIcon(int percent)
         icon.addPixmap(pm);
     }
     return icon;
+}
+
+// Ask the window manager to show the popup on every workspace, like GNOME's
+// "Always on Visible Workspace". Qt has no API for this, so set the EWMH
+// _NET_WM_DESKTOP hint (0xFFFFFFFF = all desktops) directly. The WM reads it
+// when the window is mapped and drops it when it's withdrawn, so this has to
+// run before every show. Only possible under X11/XWayland.
+void showOnAllWorkspaces(QWindow *window)
+{
+    auto *x11 = qApp->nativeInterface<QNativeInterface::QX11Application>();
+    if (!x11)
+        return;
+    xcb_connection_t *conn = x11->connection();
+    const QByteArray name("_NET_WM_DESKTOP");
+    xcb_intern_atom_reply_t *atom = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, name.size(), name.constData()), nullptr);
+    if (!atom)
+        return;
+    const uint32_t allDesktops = 0xFFFFFFFF;
+    xcb_change_property(conn, XCB_PROP_MODE_REPLACE, xcb_window_t(window->winId()), atom->atom, XCB_ATOM_CARDINAL, 32, 1, &allDesktops);
+    free(atom);
 }
 
 } // namespace
@@ -125,6 +147,7 @@ void TrayController::showPopup()
     if (!m_popup)
         return;
     positionPopup();
+    showOnAllWorkspaces(m_popup);
     m_popup->show();
     m_popup->raise();
     m_popup->requestActivate();
