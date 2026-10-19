@@ -20,6 +20,9 @@ public:
     void togglePopup();
     void showPopup();
 
+private slots:
+    void updateWorkspaces();
+
 private:
     void updateIcon();
     void positionPopup();

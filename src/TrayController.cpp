@@ -7,6 +7,8 @@
 #include <QQuickWindow>
 #include <QScreen>
 
+#include <cstring>
+
 #include <xcb/xcb.h>
 
 namespace {
@@ -57,24 +59,51 @@ QIcon renderTrayIcon(int percent)
     return icon;
 }
 
-// Ask the window manager to show the popup on every workspace, like GNOME's
-// "Always on Visible Workspace". Qt has no API for this, so set the EWMH
-// _NET_WM_DESKTOP hint (0xFFFFFFFF = all desktops) directly. The WM reads it
-// when the window is mapped and drops it when it's withdrawn, so this has to
-// run before every show. Only possible under X11/XWayland.
-void showOnAllWorkspaces(QWindow *window)
+xcb_atom_t internAtom(xcb_connection_t *conn, const char *name)
+{
+    xcb_intern_atom_reply_t *reply = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, uint16_t(strlen(name)), name), nullptr);
+    const xcb_atom_t atom = reply ? reply->atom : xcb_atom_t(XCB_ATOM_NONE);
+    free(reply);
+    return atom;
+}
+
+// Show the window on every workspace (GNOME's "Always on Visible Workspace")
+// or only the current one. Qt has no API for this, so use the EWMH hints
+// directly; only possible under X11/XWayland.
+void setOnAllWorkspaces(QWindow *window, bool all)
 {
     auto *x11 = qApp->nativeInterface<QNativeInterface::QX11Application>();
     if (!x11)
         return;
     xcb_connection_t *conn = x11->connection();
-    const QByteArray name("_NET_WM_DESKTOP");
-    xcb_intern_atom_reply_t *atom = xcb_intern_atom_reply(conn, xcb_intern_atom(conn, 0, name.size(), name.constData()), nullptr);
-    if (!atom)
+    const auto win = xcb_window_t(window->winId());
+
+    if (!window->isVisible()) {
+        // The WM reads _NET_WM_DESKTOP (0xFFFFFFFF = all desktops) when the
+        // window is mapped and drops it when it's withdrawn, so this has to
+        // be set before every show.
+        const xcb_atom_t desktop = internAtom(conn, "_NET_WM_DESKTOP");
+        const uint32_t allDesktops = 0xFFFFFFFF;
+        if (all)
+            xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win, desktop, XCB_ATOM_CARDINAL, 32, 1, &allDesktops);
+        else
+            xcb_delete_property(conn, win, desktop);
         return;
-    const uint32_t allDesktops = 0xFFFFFFFF;
-    xcb_change_property(conn, XCB_PROP_MODE_REPLACE, xcb_window_t(window->winId()), atom->atom, XCB_ATOM_CARDINAL, 32, 1, &allDesktops);
-    free(atom);
+    }
+
+    // Once mapped, the WM only honours a request sent to the root window.
+    xcb_client_message_event_t event = {};
+    event.response_type = XCB_CLIENT_MESSAGE;
+    event.format = 32;
+    event.window = win;
+    event.type = internAtom(conn, "_NET_WM_STATE");
+    event.data.data32[0] = all ? 1 : 0;  // _NET_WM_STATE_ADD / _NET_WM_STATE_REMOVE
+    event.data.data32[1] = internAtom(conn, "_NET_WM_STATE_STICKY");
+    event.data.data32[3] = 1;  // source: normal application
+    const xcb_window_t root = xcb_setup_roots_iterator(xcb_get_setup(conn)).data->root;
+    xcb_send_event(conn, 0, root, XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+                   reinterpret_cast<const char *>(&event));
+    xcb_flush(conn);
 }
 
 } // namespace
@@ -106,6 +135,10 @@ TrayController::TrayController(UsageWatcher *usage, QQuickWindow *popup, QObject
             m_sinceHidden.start();
     });
 
+    // A pinned popup follows you across workspaces; an unpinned one closes
+    // as soon as it loses focus anyway.
+    connect(m_popup, SIGNAL(pinnedChanged()), this, SLOT(updateWorkspaces()));
+
     connect(m_usage, &UsageWatcher::clockChanged, this, &TrayController::updateIcon);
     connect(m_usage, &UsageWatcher::dataChanged, this, &TrayController::updateIcon);
     updateIcon();
@@ -128,6 +161,11 @@ void TrayController::updateIcon()
     m_tray.setToolTip(tip);
 }
 
+void TrayController::updateWorkspaces()
+{
+    setOnAllWorkspaces(m_popup, m_popup->property("pinned").toBool());
+}
+
 void TrayController::togglePopup()
 {
     if (!m_popup)
@@ -147,7 +185,7 @@ void TrayController::showPopup()
     if (!m_popup)
         return;
     positionPopup();
-    showOnAllWorkspaces(m_popup);
+    updateWorkspaces();
     m_popup->show();
     m_popup->raise();
     m_popup->requestActivate();
