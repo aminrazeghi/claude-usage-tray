@@ -30,7 +30,6 @@ Window {
     visible: false
 
     onActiveChanged: if (!active && visible && !pinned) hide()
-    onVisibleChanged: if (visible) usage.refresh()
 
     MultiEffect {
         source: panel

@@ -48,17 +48,38 @@ either is missing. You can also grab the `.deb`, AppImage or tarball from
 
 ## How it works
 
-1. On launch the app installs `~/.claude/statusline.sh` and sets
-   `statusLine.command` in `~/.claude/settings.json` if none is configured.
+1. On launch the app installs `statusline.sh` into each Claude config directory
+   and sets `statusLine.command` in its `settings.json` if none is configured.
 2. Claude Code runs the status line after each response, passing session JSON
    on stdin. The script copies `rate_limits.five_hour` / `seven_day`
-   (`used_percentage`, `resets_at`) to `/tmp/claude-usage.json`.
+   (`used_percentage`, `resets_at`) to `/tmp/claude-usage.json` (or
+   `/tmp/claude-usage-<name>.json` for `~/.claude-<name>`).
 3. `UsageWatcher` watches that file (`QFileSystemWatcher` plus a 1 s mtime poll,
    because the script replaces the file atomically) and exposes it to QML.
 4. "Today" stats come from an incremental background scan of
-   `~/.claude/projects/**/*.jsonl` (unique assistant messages, input + output tokens).
+   `<config dir>/projects/**/*.jsonl` (unique assistant messages, input + output tokens).
 
-The plan badge is read from `oauthAccount.organizationType` in `~/.claude.json`.
+The plan badge is read from `oauthAccount.organizationType` in the profile's
+`.claude.json`.
+
+## Multiple subscriptions
+
+Each Claude Code config directory is one subscription. The app watches
+`~/.claude` (shown as **Main**) plus every `~/.claude-<name>` that Claude Code
+has used (shown as **Name**), e.g. with aliases like:
+
+```sh
+alias claude-main='CLAUDE_CONFIG_DIR="$HOME/.claude" claude'
+alias claude-work='CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude'
+```
+
+With more than one profile, the popup shows a tab per subscription (each tab
+shows its 5-hour usage), the compact view shows one line per subscription,
+and the tray icon follows the selected tab. The tooltip lists all of them.
+
+If profiles share a `projects/` folder (e.g. a symlink), "Today" counts each
+subscription's own sessions, using the session ids its status line reports.
+Sessions that ended before the status line started reporting them aren't counted.
 
 ## Build & run
 

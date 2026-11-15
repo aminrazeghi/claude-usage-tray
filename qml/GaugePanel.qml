@@ -7,6 +7,7 @@ import ClaudeUsage
 ColumnLayout {
     id: root
 
+    property QtObject usage  // UsageWatcher of the selected profile
     property bool showAvailable: false
 
     spacing: 12
@@ -16,9 +17,9 @@ ColumnLayout {
         Layout.topMargin: 4
         Layout.preferredWidth: 172
         Layout.preferredHeight: 172
-        innerValue: usage.fiveHourUsed / 100
-        outerValue: usage.sevenDayUsed / 100
-        hasData: usage.hasData
+        innerValue: root.usage.fiveHourUsed / 100
+        outerValue: root.usage.sevenDayUsed / 100
+        hasData: root.usage.hasData
         showAvailable: root.showAvailable
         innerColor: Theme.green
         outerColor: Theme.purple
@@ -38,20 +39,20 @@ ColumnLayout {
             accent: Theme.green
             icon: "../resources/icons/alarm.svg"
             title: "5-Hour"
-            known: usage.fiveHourKnown
-            percent: usage.fiveHourUsed
-            resetText: usage.fiveHourResetText
-            leftText: usage.fiveHourLeftText
+            known: root.usage.fiveHourKnown
+            percent: root.usage.fiveHourUsed
+            resetText: root.usage.fiveHourResetText
+            leftText: root.usage.fiveHourLeftText
         }
         UsageRow {
             Layout.fillWidth: true
             accent: Theme.purple
             icon: "../resources/icons/calendar.svg"
             title: "Weekly"
-            known: usage.sevenDayKnown
-            percent: usage.sevenDayUsed
-            resetText: usage.sevenDayResetText
-            leftText: usage.sevenDayLeftText
+            known: root.usage.sevenDayKnown
+            percent: root.usage.sevenDayUsed
+            resetText: root.usage.sevenDayResetText
+            leftText: root.usage.sevenDayLeftText
         }
     }
 
@@ -77,9 +78,9 @@ ColumnLayout {
             font.weight: Font.DemiBold
         }
         Text { text: "Messages"; color: Theme.textSecondary; font.pixelSize: 12; Layout.fillWidth: true }
-        Text { text: usage.todayMessages; color: Theme.textPrimary; font.pixelSize: 12; font.weight: Font.DemiBold }
+        Text { text: root.usage.todayMessages; color: Theme.textPrimary; font.pixelSize: 12; font.weight: Font.DemiBold }
         Text { text: "Tokens (in + out)"; color: Theme.textSecondary; font.pixelSize: 12; Layout.fillWidth: true }
-        Text { text: usage.todayTokensText; color: Theme.textPrimary; font.pixelSize: 12; font.weight: Font.DemiBold }
+        Text { text: root.usage.todayTokensText; color: Theme.textPrimary; font.pixelSize: 12; font.weight: Font.DemiBold }
     }
 
     Rectangle {
@@ -94,18 +95,18 @@ ColumnLayout {
 
         Text {
             Layout.fillWidth: true
-            text: usage.updatedText + (usage.model ? " · " + usage.model : "")
+            text: root.usage.updatedText + (root.usage.model ? " · " + root.usage.model : "")
             color: Theme.textSecondary
             font.pixelSize: 11
             elide: Text.ElideRight
         }
-        RefreshButton {}
+        RefreshButton { usage: root.usage }
     }
 
     Text {
-        visible: !usage.hasData
+        visible: !root.usage.hasData
         Layout.fillWidth: true
-        text: "Limits appear after Claude Code's next response. The status line writes them to " + usage.usageFile + "."
+        text: "Limits appear after Claude Code's next response. The status line writes them to " + root.usage.usageFile + "."
         wrapMode: Text.WordWrap
         color: Theme.textSecondary
         font.pixelSize: 11

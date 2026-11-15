@@ -6,13 +6,16 @@
 #include <QFileSystemWatcher>
 #include <QFutureWatcher>
 #include <QObject>
+#include <QSet>
 #include <QTimer>
 
-// Watches the usage snapshot written by statusline.sh and exposes it to QML.
+// Watches one Claude config directory (one subscription): the usage snapshot
+// its statusline.sh writes, its account plan and today's transcripts.
 class UsageWatcher : public QObject
 {
     Q_OBJECT
 
+    Q_PROPERTY(QString name READ name CONSTANT)
     Q_PROPERTY(bool hasData READ hasData NOTIFY dataChanged)
     Q_PROPERTY(QString model READ model NOTIFY dataChanged)
     Q_PROPERTY(QString plan READ plan NOTIFY planChanged)
@@ -36,7 +39,11 @@ class UsageWatcher : public QObject
     Q_PROPERTY(QString usageFile READ usageFile CONSTANT)
 
 public:
-    explicit UsageWatcher(QString usageFile, QObject *parent = nullptr);
+    // sharedProjects: another profile's projects/ is the same folder, so "Today"
+    // counts only the sessions this profile's status line has reported.
+    UsageWatcher(QString name, QString configDir, QString usageFile, bool sharedProjects, QObject *parent = nullptr);
+
+    QString name() const { return m_name; }
 
     bool hasData() const { return m_hasData; }
     QString model() const { return m_model; }
@@ -87,6 +94,10 @@ private:
     void tick();
     void ensureWatched();
 
+    QString m_name;
+    QString m_configDir;
+    bool m_sharedProjects;
+    QSet<QString> m_sessions;
     QString m_usageFile;
     QFileSystemWatcher m_watcher;
     QTimer m_clock;

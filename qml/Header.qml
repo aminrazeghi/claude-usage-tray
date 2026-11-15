@@ -6,6 +6,7 @@ import ClaudeUsage
 RowLayout {
     id: header
 
+    property QtObject usage  // UsageWatcher of the selected profile
     property alias pinned: controls.pinned
     signal pinClicked()
     signal collapseClicked()
@@ -26,7 +27,7 @@ RowLayout {
         font.weight: Font.Bold
     }
     Rectangle {
-        visible: usage.plan !== ""
+        visible: header.usage.plan !== ""
         implicitWidth: planLabel.implicitWidth + 16
         implicitHeight: 22
         radius: 6
@@ -35,7 +36,7 @@ RowLayout {
         Text {
             id: planLabel
             anchors.centerIn: parent
-            text: usage.plan
+            text: header.usage.plan
             color: Theme.claudeOrange
             font.pixelSize: 12
             font.weight: Font.DemiBold

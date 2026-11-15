@@ -1,6 +1,7 @@
 #include "TodayScanner.h"
 
 #include <QDateTime>
+#include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
@@ -16,6 +17,19 @@ qint64 TodayScanState::tokens() const
 }
 
 namespace {
+
+// Transcripts live at <project>/<session>.jsonl, and subagents' at
+// <project>/<session>/subagents/<agent>.jsonl.
+QString sessionOf(const QString &projectsDir, const QString &path)
+{
+    const QStringList parts = QDir(projectsDir).relativeFilePath(path).split(QLatin1Char('/'));
+    if (parts.size() < 2)
+        return QString();
+    QString session = parts.at(1);
+    if (session.endsWith(QLatin1String(".jsonl")))
+        session.chop(6);
+    return session;
+}
 
 void consumeLine(const QByteArray &line, const QDate &today, TodayScanState &state)
 {
@@ -48,7 +62,7 @@ void consumeLine(const QByteArray &line, const QDate &today, TodayScanState &sta
 
 } // namespace
 
-TodayScanState scanToday(TodayScanState state, const QString &projectsDir)
+TodayScanState scanToday(TodayScanState state, const QString &projectsDir, const std::optional<QSet<QString>> &sessions)
 {
     const QDate today = QDate::currentDate();
     if (state.day != today) {
@@ -62,6 +76,9 @@ TodayScanState scanToday(TodayScanState state, const QString &projectsDir)
         const QString path = it.next();
         const QFileInfo info = it.fileInfo();
         if (info.lastModified() < midnight)
+            continue;
+        // Skipped files keep no offset, so a session attributed later is read in full.
+        if (sessions && !sessions->contains(sessionOf(projectsDir, path)))
             continue;
 
         qint64 &offset = state.fileOffsets[path];

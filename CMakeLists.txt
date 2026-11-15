@@ -47,6 +47,7 @@ qt_add_qml_module(claude-usage-monitor
         qml/IconButton.qml
         qml/WindowControls.qml
         qml/CompactPanel.qml
+        qml/ProfileTabs.qml
     RESOURCES
         resources/claude-icon.svg
         resources/icons/alarm.svg

@@ -25,8 +25,11 @@ QString formatTime(const QTime &t, bool dropZeroMinutes)
 
 } // namespace
 
-UsageWatcher::UsageWatcher(QString usageFile, QObject *parent)
+UsageWatcher::UsageWatcher(QString name, QString configDir, QString usageFile, bool sharedProjects, QObject *parent)
     : QObject(parent)
+    , m_name(std::move(name))
+    , m_configDir(std::move(configDir))
+    , m_sharedProjects(sharedProjects)
     , m_usageFile(std::move(usageFile))
 {
     connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, [this] {
@@ -109,6 +112,8 @@ void UsageWatcher::readUsageFile()
     m_fiveHour = parseWindow(limits.value(QStringLiteral("five_hour")));
     m_sevenDay = parseWindow(limits.value(QStringLiteral("seven_day")));
     m_model = root.value(QStringLiteral("model")).toString();
+    const QStringList sessions = root.value(QStringLiteral("sessions")).toObject().keys();
+    m_sessions = QSet<QString>(sessions.begin(), sessions.end());
     const qint64 updated = root.value(QStringLiteral("updated_at")).toInteger();
     m_updatedAt = updated > 0 ? QDateTime::fromSecsSinceEpoch(updated) : m_fileMtime;
     m_hasData = m_fiveHour.present || m_sevenDay.present;
@@ -119,11 +124,19 @@ void UsageWatcher::readUsageFile()
 
 void UsageWatcher::readPlan()
 {
-    QFile f(QDir::homePath() + QStringLiteral("/.claude.json"));
+    // Claude Code keeps account info in $CLAUDE_CONFIG_DIR/.claude.json, or in
+    // ~/.claude.json for ~/.claude when the variable is unset; use the newest.
+    QFileInfo account(m_configDir + QStringLiteral("/.claude.json"));
+    const QFileInfo legacy(QDir::homePath() + QStringLiteral("/.claude.json"));
+    if (m_configDir == QDir::homePath() + QStringLiteral("/.claude") && legacy.exists()
+        && (!account.exists() || legacy.lastModified() > account.lastModified()))
+        account = legacy;
+
+    QFile f(account.filePath());
     if (!f.open(QIODevice::ReadOnly))
         return;
-    const QJsonObject account = QJsonDocument::fromJson(f.readAll()).object().value(QStringLiteral("oauthAccount")).toObject();
-    QString org = account.value(QStringLiteral("organizationType")).toString();  // e.g. "claude_pro"
+    const QJsonObject oauth = QJsonDocument::fromJson(f.readAll()).object().value(QStringLiteral("oauthAccount")).toObject();
+    QString org = oauth.value(QStringLiteral("organizationType")).toString();  // e.g. "claude_pro"
 
     QString plan;
     if (org.startsWith(QLatin1String("claude_"))) {
@@ -144,8 +157,9 @@ void UsageWatcher::startScan()
         m_rescanPending = true;
         return;
     }
-    const QString projectsDir = QDir::homePath() + QStringLiteral("/.claude/projects");
-    m_scan.setFuture(QtConcurrent::run(scanToday, m_today, projectsDir));
+    const QString projectsDir = m_configDir + QStringLiteral("/projects");
+    const std::optional<QSet<QString>> sessions = m_sharedProjects ? std::optional(m_sessions) : std::nullopt;
+    m_scan.setFuture(QtConcurrent::run(scanToday, m_today, projectsDir, sessions));
     emit scanningChanged();
 }
 

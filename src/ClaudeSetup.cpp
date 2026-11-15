@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
@@ -11,7 +12,6 @@
 namespace {
 
 const QString kScriptMarker = QStringLiteral("claude-usage-monitor statusline");
-const QString kStatuslineCommand = QStringLiteral("~/.claude/statusline.sh");
 
 QByteArray readAll(const QString &path)
 {
@@ -27,17 +27,53 @@ bool writeAtomically(const QString &path, const QByteArray &data)
     return f.commit();
 }
 
-} // namespace
-
-QString ClaudeSetup::claudeDir()
+// The part after ".claude-" in a profile directory's name; empty for ~/.claude.
+QString profileSuffix(const QString &configDir)
 {
-    return QDir::homePath() + QStringLiteral("/.claude");
+    const QString base = QFileInfo(configDir).fileName();
+    return base.startsWith(QLatin1String(".claude-")) ? base.mid(8) : QString();
 }
 
-bool ClaudeSetup::installStatuslineScript()
+// "~/.claude-work/statusline.sh" for directories under $HOME, absolute otherwise.
+QString statuslineCommand(const QString &configDir)
 {
-    QDir().mkpath(claudeDir());
-    const QString target = claudeDir() + QStringLiteral("/statusline.sh");
+    const QString home = QDir::homePath();
+    QString path = configDir + QStringLiteral("/statusline.sh");
+    if (path.startsWith(home + QLatin1Char('/')))
+        path = QStringLiteral("~") + path.mid(home.size());
+    return path;
+}
+
+} // namespace
+
+QList<ClaudeSetup::Profile> ClaudeSetup::discoverProfiles()
+{
+    const QString main = QDir::homePath() + QStringLiteral("/.claude");
+    QList<Profile> profiles{{QStringLiteral("Main"), main, usageFileFor(main)}};
+
+    const QFileInfoList dirs = QDir::home().entryInfoList({QStringLiteral(".claude-*")},
+                                                          QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot, QDir::Name);
+    for (const QFileInfo &dir : dirs) {
+        const QString path = dir.absoluteFilePath();
+        const QString suffix = profileSuffix(path);
+        if (suffix.isEmpty() || !(QFile::exists(path + QStringLiteral("/.claude.json")) || QDir(path + QStringLiteral("/projects")).exists()))
+            continue;
+        profiles.append({suffix.left(1).toUpper() + suffix.mid(1), path, usageFileFor(path)});
+    }
+    return profiles;
+}
+
+QString ClaudeSetup::usageFileFor(const QString &configDir)
+{
+    const QString suffix = profileSuffix(configDir);
+    return suffix.isEmpty() ? QStringLiteral("/tmp/claude-usage.json")
+                            : QStringLiteral("/tmp/claude-usage-%1.json").arg(suffix);
+}
+
+bool ClaudeSetup::installStatuslineScript(const QString &configDir)
+{
+    QDir().mkpath(configDir);
+    const QString target = configDir + QStringLiteral("/statusline.sh");
     const QByteArray bundled = readAll(QStringLiteral(":/qt/qml/ClaudeUsage/resources/statusline.sh"));
     if (bundled.isEmpty()) {
         qWarning() << "Bundled statusline.sh is missing from resources";
@@ -65,9 +101,10 @@ bool ClaudeSetup::installStatuslineScript()
     return true;
 }
 
-bool ClaudeSetup::configureSettings(bool force)
+bool ClaudeSetup::configureSettings(const QString &configDir, bool force)
 {
-    const QString path = claudeDir() + QStringLiteral("/settings.json");
+    const QString path = configDir + QStringLiteral("/settings.json");
+    const QString wanted = statuslineCommand(configDir);
     QJsonObject settings;
 
     if (QFile::exists(path)) {
@@ -82,14 +119,13 @@ bool ClaudeSetup::configureSettings(bool force)
 
     const QJsonObject statusLine = settings.value(QStringLiteral("statusLine")).toObject();
     const QString command = statusLine.value(QStringLiteral("command")).toString();
-    const QString expanded = QString(kStatuslineCommand).replace(QStringLiteral("~"), QDir::homePath());
-    if (command == kStatuslineCommand || command == expanded)
+    if (command == wanted || command == configDir + QStringLiteral("/statusline.sh"))
         return true;
 
     if (!command.isEmpty()) {
         if (!force) {
-            qWarning().noquote() << "settings.json already has a statusLine command (" << command << ")."
-                                 << "Run with --force-setup to replace it with" << kStatuslineCommand;
+            qWarning().noquote() << path << "already has a statusLine command (" << command << ")."
+                                 << "Run with --force-setup to replace it with" << wanted;
             return false;
         }
         const QString backup = path + QStringLiteral(".bak-") + QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
@@ -99,7 +135,7 @@ bool ClaudeSetup::configureSettings(bool force)
 
     settings.insert(QStringLiteral("statusLine"), QJsonObject{
         {QStringLiteral("type"), QStringLiteral("command")},
-        {QStringLiteral("command"), kStatuslineCommand},
+        {QStringLiteral("command"), wanted},
         {QStringLiteral("padding"), 0},
     });
 

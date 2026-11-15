@@ -2,7 +2,10 @@
 
 #include <QDate>
 #include <QHash>
+#include <QSet>
 #include <QString>
+
+#include <optional>
 
 // Incremental scan of Claude Code transcripts (~/.claude/projects/**/*.jsonl)
 // for today's assistant messages and token usage. The state is passed by value
@@ -17,4 +20,7 @@ struct TodayScanState
     qint64 tokens() const;
 };
 
-TodayScanState scanToday(TodayScanState state, const QString &projectsDir);
+// When `sessions` is set, only transcripts of those session ids are counted;
+// used when several config directories share one projects/ folder.
+TodayScanState scanToday(TodayScanState state, const QString &projectsDir,
+                         const std::optional<QSet<QString>> &sessions = std::nullopt);

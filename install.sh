@@ -152,7 +152,7 @@ uninstall_app() {
     [ -L "$BIN_DIR/$APP" ] && rm -f "$BIN_DIR/$APP"
     rm -f "$DESKTOP_FILE" "$ICON_FILE" "$AUTOSTART_FILE"
     info "Uninstalled Claude Usage Monitor."
-    info "Left in place: ~/.claude/statusline.sh, the statusLine entry in ~/.claude/settings.json, and $CONFIG_HOME/$APP/."
+    info "Left in place: statusline.sh and the statusLine entry in settings.json of ~/.claude and each ~/.claude-*, and $CONFIG_HOME/$APP/."
 }
 
 main() {

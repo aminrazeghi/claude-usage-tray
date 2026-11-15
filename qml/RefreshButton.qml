@@ -3,6 +3,10 @@ import ClaudeUsage
 
 // Round "↻" button that spins while the transcript scan runs.
 Rectangle {
+    id: button
+
+    property QtObject usage
+
     implicitWidth: 26
     implicitHeight: 26
     radius: 13
@@ -16,7 +20,7 @@ Rectangle {
         font.pixelSize: 16
 
         RotationAnimation on rotation {
-            running: usage.scanning
+            running: button.usage.scanning
             from: 0; to: 360
             duration: 800
             loops: Animation.Infinite
@@ -29,6 +33,6 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: usage.refresh()
+        onClicked: button.usage.refresh()
     }
 }

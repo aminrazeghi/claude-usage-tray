@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
-# claude-usage-monitor statusline v1
+# claude-usage-monitor statusline v2
 #
 # Claude Code runs this on every status line refresh and passes session JSON on
-# stdin. We record the subscription rate limits to $CLAUDE_USAGE_FILE (default
-# /tmp/claude-usage.json) for the tray app, then print a compact status line.
+# stdin. We record the subscription rate limits for the tray app, then print a
+# compact status line.
+#
+# One copy lives in each Claude config directory, and its location picks the
+# snapshot file: ~/.claude -> /tmp/claude-usage.json,
+# ~/.claude-<name> -> /tmp/claude-usage-<name>.json. $CLAUDE_USAGE_FILE overrides.
 # This file is managed by claude-usage-monitor; remove the line above to keep
 # your own edits from being overwritten.
 
-OUT="${CLAUDE_USAGE_FILE:-/tmp/claude-usage.json}"
+config_dir=$(basename "$(dirname "${BASH_SOURCE[0]}")")
+suffix="${config_dir#.claude}"
+suffix="${suffix#-}"
+OUT="${CLAUDE_USAGE_FILE:-/tmp/claude-usage${suffix:+-$suffix}.json}"
 input=$(cat)
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -32,7 +39,13 @@ tmp=$(mktemp "${OUT}.XXXXXX" 2>/dev/null) && {
             version: .version,
             context_used_percentage: .context_window.used_percentage,
             session_cost_usd: .cost.total_cost_usd,
-            rate_limits: ((($prev.rate_limits // {}) + (.rate_limits // {})) | if . == {} then null else . end)
+            rate_limits: ((($prev.rate_limits // {}) + (.rate_limits // {})) | if . == {} then null else . end),
+            # Sessions this account ran in the last two days. Config dirs can
+            # share a projects/ folder, so the app uses these to tell whose
+            # transcripts are whose.
+            sessions: (($prev.sessions // {})
+                       + (if .session_id then {(.session_id): $now} else {} end)
+                       | with_entries(select(.value > $now - 172800)))
         }' <<<"$input" >"$tmp" 2>/dev/null; then
         mv -f "$tmp" "$OUT"
     else

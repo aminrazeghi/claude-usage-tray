@@ -5,6 +5,8 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFileInfo>
+#include <QHash>
 #include <QLockFile>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -32,10 +34,10 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription(QStringLiteral("System tray monitor for Claude usage limits."));
     parser.addHelpOption();
     parser.addVersionOption();
-    const QCommandLineOption noSetup(QStringLiteral("no-setup"), QStringLiteral("Do not touch ~/.claude/settings.json or statusline.sh."));
+    const QCommandLineOption noSetup(QStringLiteral("no-setup"), QStringLiteral("Do not touch settings.json or statusline.sh in ~/.claude and ~/.claude-*."));
     const QCommandLineOption forceSetup(QStringLiteral("force-setup"), QStringLiteral("Replace an existing statusLine command (settings are backed up first)."));
     const QCommandLineOption showOption(QStringLiteral("show"), QStringLiteral("Open the popup on startup."));
-    const QCommandLineOption fileOption(QStringLiteral("file"), QStringLiteral("Usage snapshot to watch."), QStringLiteral("path"),
+    const QCommandLineOption fileOption(QStringLiteral("file"), QStringLiteral("Usage snapshot to watch for the ~/.claude profile."), QStringLiteral("path"),
                                         qEnvironmentVariable("CLAUDE_USAGE_FILE", QStringLiteral("/tmp/claude-usage.json")));
     const QCommandLineOption grabOption(QStringLiteral("grab"), QStringLiteral("Render the popup to an image file and exit."), QStringLiteral("png"));
     parser.addOptions({noSetup, forceSetup, showOption, fileOption, grabOption});
@@ -47,18 +49,42 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    QList<ClaudeSetup::Profile> profiles = ClaudeSetup::discoverProfiles();
+    if (parser.isSet(fileOption) || qEnvironmentVariableIsSet("CLAUDE_USAGE_FILE"))
+        profiles.first().usageFile = parser.value(fileOption);
+
     if (!parser.isSet(noSetup)) {
-        ClaudeSetup::installStatuslineScript();
-        ClaudeSetup::configureSettings(parser.isSet(forceSetup));
+        for (const ClaudeSetup::Profile &profile : std::as_const(profiles)) {
+            ClaudeSetup::installStatuslineScript(profile.configDir);
+            ClaudeSetup::configureSettings(profile.configDir, parser.isSet(forceSetup));
+        }
     }
 
     if (!QSystemTrayIcon::isSystemTrayAvailable())
         qWarning("No system tray detected. On GNOME, enable the AppIndicator extension.");
 
-    UsageWatcher usage(parser.value(fileOption));
+    // Profiles whose projects/ resolve to the same folder (e.g. a symlink)
+    // split "Today" by session instead of counting each other's transcripts.
+    auto projectsOf = [](const ClaudeSetup::Profile &profile) {
+        return QFileInfo(profile.configDir + QStringLiteral("/projects")).canonicalFilePath();
+    };
+    QHash<QString, int> projectDirUsers;
+    for (const ClaudeSetup::Profile &profile : std::as_const(profiles))
+        ++projectDirUsers[projectsOf(profile)];
+
+    // One watcher per subscription, owned by the app.
+    QList<UsageWatcher *> watchers;
+    QVariantList watcherObjects;
+    for (const ClaudeSetup::Profile &profile : std::as_const(profiles)) {
+        const QString projects = projectsOf(profile);
+        const bool shared = !projects.isEmpty() && projectDirUsers.value(projects) > 1;
+        auto *watcher = new UsageWatcher(profile.name, profile.configDir, profile.usageFile, shared, &app);
+        watchers.append(watcher);
+        watcherObjects.append(QVariant::fromValue(static_cast<QObject *>(watcher)));
+    }
 
     QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty(QStringLiteral("usage"), &usage);
+    engine.rootContext()->setContextProperty(QStringLiteral("profiles"), watcherObjects);
     engine.load(QUrl(QStringLiteral("qrc:/qt/qml/ClaudeUsage/qml/main.qml")));
     auto *popup = engine.rootObjects().isEmpty() ? nullptr : qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst());
     if (!popup)
@@ -73,7 +99,7 @@ int main(int argc, char *argv[])
         return app.exec();
     }
 
-    TrayController tray(&usage, popup);
+    TrayController tray(watchers, popup);
     if (parser.isSet(showOption))
         tray.showPopup();
 

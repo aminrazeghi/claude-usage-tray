@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QPainter>
+#include <QQmlProperty>
 #include <QQuickWindow>
 #include <QScreen>
 
@@ -108,13 +109,16 @@ void setOnAllWorkspaces(QWindow *window, bool all)
 
 } // namespace
 
-TrayController::TrayController(UsageWatcher *usage, QQuickWindow *popup, QObject *parent)
+TrayController::TrayController(QList<UsageWatcher *> profiles, QQuickWindow *popup, QObject *parent)
     : QObject(parent)
-    , m_usage(usage)
+    , m_profiles(std::move(profiles))
     , m_popup(popup)
 {
     m_menu.addAction(QStringLiteral("Show Usage"), this, &TrayController::showPopup);
-    m_menu.addAction(QStringLiteral("Refresh"), m_usage, &UsageWatcher::refresh);
+    m_menu.addAction(QStringLiteral("Refresh"), this, [this] {
+        for (UsageWatcher *profile : std::as_const(m_profiles))
+            profile->refresh();
+    });
     m_menu.addSeparator();
     m_menu.addAction(QStringLiteral("Quit"), qApp, &QCoreApplication::quit);
     m_tray.setContextMenu(&m_menu);
@@ -139,26 +143,43 @@ TrayController::TrayController(UsageWatcher *usage, QQuickWindow *popup, QObject
     // as soon as it loses focus anyway.
     connect(m_popup, SIGNAL(pinnedChanged()), this, SLOT(updateWorkspaces()));
 
-    connect(m_usage, &UsageWatcher::clockChanged, this, &TrayController::updateIcon);
-    connect(m_usage, &UsageWatcher::dataChanged, this, &TrayController::updateIcon);
+    for (UsageWatcher *profile : std::as_const(m_profiles)) {
+        connect(profile, &UsageWatcher::clockChanged, this, &TrayController::updateIcon);
+        connect(profile, &UsageWatcher::dataChanged, this, &TrayController::updateIcon);
+    }
+    // The icon follows the tab selected in the popup.
+    QQmlProperty(m_popup, QStringLiteral("currentIndex")).connectNotifySignal(this, SLOT(updateIcon()));
     updateIcon();
     m_tray.show();
 }
 
+UsageWatcher *TrayController::currentProfile() const
+{
+    const int index = m_popup ? m_popup->property("currentIndex").toInt() : 0;
+    return m_profiles.value(std::clamp(index, 0, int(m_profiles.size()) - 1));
+}
+
 void TrayController::updateIcon()
 {
-    const int percent = m_usage->fiveHourKnown() ? int(std::lround(m_usage->fiveHourUsed())) : -1;
-    if (percent == m_lastShownPercent)
-        return;
-    m_lastShownPercent = percent;
-    m_tray.setIcon(renderTrayIcon(percent));
+    const UsageWatcher *current = currentProfile();
+    const int percent = current->fiveHourKnown() ? int(std::lround(current->fiveHourUsed())) : -1;
+    if (percent != m_lastShownPercent) {
+        m_lastShownPercent = percent;
+        m_tray.setIcon(renderTrayIcon(percent));
+    }
 
     QString tip = QStringLiteral("Claude Usage");
-    if (m_usage->fiveHourKnown())
-        tip += QStringLiteral("\n5-hour: %1% (resets %2)").arg(percent).arg(m_usage->fiveHourResetText());
-    if (m_usage->sevenDayKnown())
-        tip += QStringLiteral("\n7-day: %1% (resets %2)").arg(std::lround(m_usage->sevenDayUsed())).arg(m_usage->sevenDayResetText());
-    m_tray.setToolTip(tip);
+    for (const UsageWatcher *profile : std::as_const(m_profiles)) {
+        const QString indent = m_profiles.size() > 1 ? QStringLiteral("  ") : QString();
+        if (m_profiles.size() > 1)
+            tip += QStringLiteral("\n") + profile->name() + (profile == current ? QStringLiteral(" (shown)") : QString());
+        if (profile->fiveHourKnown())
+            tip += QStringLiteral("\n%1 5-hour: %2% (resets %3)").arg(indent).arg(std::lround(profile->fiveHourUsed())).arg(profile->fiveHourResetText());
+        if (profile->sevenDayKnown())
+            tip += QStringLiteral("\n%1 7-day: %2% (resets %3)").arg(indent).arg(std::lround(profile->sevenDayUsed())).arg(profile->sevenDayResetText());
+    }
+    if (tip != m_tray.toolTip())
+        m_tray.setToolTip(tip);
 }
 
 void TrayController::updateWorkspaces()
