@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-usage-monitor statusline v2
+# claude-usage-monitor statusline v3
 #
 # Claude Code runs this on every status line refresh and passes session JSON on
 # stdin. We record the subscription rate limits for the tray app, then print a
@@ -7,13 +7,17 @@
 #
 # One copy lives in each Claude config directory, and its location picks the
 # snapshot file: ~/.claude -> /tmp/claude-usage.json,
-# ~/.claude-<name> -> /tmp/claude-usage-<name>.json. $CLAUDE_USAGE_FILE overrides.
+# ~/.claude-<name> -> /tmp/claude-usage-<name>.json, any other folder ->
+# /tmp/claude-usage-<folder>.json. $CLAUDE_USAGE_FILE overrides.
 # This file is managed by claude-usage-monitor; remove the line above to keep
 # your own edits from being overwritten.
 
 config_dir=$(basename "$(dirname "${BASH_SOURCE[0]}")")
-suffix="${config_dir#.claude}"
-suffix="${suffix#-}"
+case "$config_dir" in
+    .claude) suffix="" ;;
+    .claude-*) suffix="${config_dir#.claude-}" ;;
+    *) suffix="${config_dir#"${config_dir%%[!.]*}"}" ;;  # folder name without leading dots
+esac
 OUT="${CLAUDE_USAGE_FILE:-/tmp/claude-usage${suffix:+-$suffix}.json}"
 input=$(cat)
 

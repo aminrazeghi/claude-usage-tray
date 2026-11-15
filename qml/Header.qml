@@ -2,12 +2,14 @@ import QtQuick
 import QtQuick.Layouts
 import ClaudeUsage
 
-// App icon, title, plan badge and the pin / collapse buttons.
+// App icon, title, plan badge and the settings / pin / collapse buttons.
 RowLayout {
     id: header
 
     property QtObject usage  // UsageWatcher of the selected profile
     property alias pinned: controls.pinned
+    property bool settingsOpen: false
+    signal settingsClicked()
     signal pinClicked()
     signal collapseClicked()
 
@@ -41,6 +43,14 @@ RowLayout {
             font.pixelSize: 12
             font.weight: Font.DemiBold
         }
+    }
+
+    IconButton {
+        Layout.leftMargin: -6  // tighten towards the pin / collapse pair
+        // Lucide "settings"
+        path: "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"
+        checked: header.settingsOpen
+        onClicked: header.settingsClicked()
     }
 
     WindowControls {

@@ -27,6 +27,8 @@ qt_add_executable(claude-usage-monitor
     src/ClaudeSetup.cpp
     src/TrayController.h
     src/TrayController.cpp
+    src/ProfileManager.h
+    src/ProfileManager.cpp
 )
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
@@ -48,6 +50,7 @@ qt_add_qml_module(claude-usage-monitor
         qml/WindowControls.qml
         qml/CompactPanel.qml
         qml/ProfileTabs.qml
+        qml/SettingsPanel.qml
     RESOURCES
         resources/claude-icon.svg
         resources/icons/alarm.svg

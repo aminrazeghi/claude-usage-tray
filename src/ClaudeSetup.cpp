@@ -27,11 +27,18 @@ bool writeAtomically(const QString &path, const QByteArray &data)
     return f.commit();
 }
 
-// The part after ".claude-" in a profile directory's name; empty for ~/.claude.
+// Distinguishes a profile's snapshot file; must match statusline.sh. Empty for
+// ~/.claude, "work" for ~/.claude-work, the folder name for anything else.
 QString profileSuffix(const QString &configDir)
 {
-    const QString base = QFileInfo(configDir).fileName();
-    return base.startsWith(QLatin1String(".claude-")) ? base.mid(8) : QString();
+    QString base = QFileInfo(configDir).fileName();
+    if (base == QLatin1String(".claude"))
+        return QString();
+    if (base.startsWith(QLatin1String(".claude-")))
+        return base.mid(8);
+    while (base.startsWith(QLatin1Char('.')))
+        base.remove(0, 1);
+    return base;
 }
 
 // "~/.claude-work/statusline.sh" for directories under $HOME, absolute otherwise.
@@ -46,28 +53,21 @@ QString statuslineCommand(const QString &configDir)
 
 } // namespace
 
-QList<ClaudeSetup::Profile> ClaudeSetup::discoverProfiles()
-{
-    const QString main = QDir::homePath() + QStringLiteral("/.claude");
-    QList<Profile> profiles{{QStringLiteral("Main"), main, usageFileFor(main)}};
-
-    const QFileInfoList dirs = QDir::home().entryInfoList({QStringLiteral(".claude-*")},
-                                                          QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot, QDir::Name);
-    for (const QFileInfo &dir : dirs) {
-        const QString path = dir.absoluteFilePath();
-        const QString suffix = profileSuffix(path);
-        if (suffix.isEmpty() || !(QFile::exists(path + QStringLiteral("/.claude.json")) || QDir(path + QStringLiteral("/projects")).exists()))
-            continue;
-        profiles.append({suffix.left(1).toUpper() + suffix.mid(1), path, usageFileFor(path)});
-    }
-    return profiles;
-}
-
 QString ClaudeSetup::usageFileFor(const QString &configDir)
 {
     const QString suffix = profileSuffix(configDir);
     return suffix.isEmpty() ? QStringLiteral("/tmp/claude-usage.json")
                             : QStringLiteral("/tmp/claude-usage-%1.json").arg(suffix);
+}
+
+QString ClaudeSetup::defaultProfileName(const QString &configDir)
+{
+    const QString suffix = profileSuffix(configDir);
+    if (suffix.isEmpty())
+        return QStringLiteral("Main");
+    bool numeric = false;
+    suffix.toInt(&numeric);
+    return numeric ? QStringLiteral("Account ") + suffix : suffix.left(1).toUpper() + suffix.mid(1);
 }
 
 bool ClaudeSetup::installStatuslineScript(const QString &configDir)

@@ -7,6 +7,7 @@
 #include <QPointer>
 #include <QSystemTrayIcon>
 
+class ProfileManager;
 class QQuickWindow;
 class UsageWatcher;
 
@@ -17,7 +18,7 @@ class TrayController : public QObject
     Q_OBJECT
 
 public:
-    TrayController(QList<UsageWatcher *> profiles, QQuickWindow *popup, QObject *parent = nullptr);
+    TrayController(ProfileManager *profiles, QQuickWindow *popup, QObject *parent = nullptr);
 
     void togglePopup();
     void showPopup();
@@ -27,10 +28,11 @@ private slots:
     void updateIcon();
 
 private:
+    void connectProfiles();
     UsageWatcher *currentProfile() const;
     void positionPopup();
 
-    QList<UsageWatcher *> m_profiles;
+    ProfileManager *m_profiles;
     QPointer<QQuickWindow> m_popup;
     QSystemTrayIcon m_tray;
     QMenu m_menu;

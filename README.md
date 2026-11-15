@@ -64,16 +64,20 @@ The plan badge is read from `oauthAccount.organizationType` in the profile's
 
 ## Multiple subscriptions
 
-Each Claude Code config directory is one subscription. The app watches
-`~/.claude` (shown as **Main**) plus every `~/.claude-<name>` that Claude Code
-has used (shown as **Name**), e.g. with aliases like:
+Each Claude Code config directory is one subscription. The app always watches
+`~/.claude` (shown as **Main**) and can watch one more: `~/.claude-work` by
+default, shown only if that folder exists. To pick another folder (say
+`~/.claude-2`), name its tab, or turn it off, click the gear in the popup's
+header. Changes apply immediately and are saved in
+`~/.config/claude-usage-monitor/`. Run each account with its own
+`CLAUDE_CONFIG_DIR`, e.g.:
 
 ```sh
 alias claude-main='CLAUDE_CONFIG_DIR="$HOME/.claude" claude'
 alias claude-work='CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude'
 ```
 
-With more than one profile, the popup shows a tab per subscription (each tab
+With two accounts, the popup shows a tab per subscription (each tab
 shows its 5-hour usage), the compact view shows one line per subscription,
 and the tray icon follows the selected tab. The tooltip lists all of them.
 
